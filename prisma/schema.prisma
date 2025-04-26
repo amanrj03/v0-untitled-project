@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  testsCreated     Test[]          @relation("TeacherTests")
+  testResults      TestResult[]
+  teachersRelation TeacherStudent[] @relation("StudentTeachers")
+  studentsRelation TeacherStudent[] @relation("TeacherStudents")
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+model TeacherStudent {
+  id        String   @id @default(cuid())
+  teacherId String
+  studentId String
+  createdAt DateTime @default(now())
+
+  // Relations
+  teacher User @relation("TeacherStudents", fields: [teacherId], references: [id], onDelete: Cascade)
+  student User @relation("StudentTeachers", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, studentId])
+}
+
+model Test {
+  id           String   @id @default(cuid())
+  title        String
+  description  String   @default("")
+  subject      String
+  duration     Int      // in minutes
+  instructions String   @default("")
+  passingMarks Int      @default(0)
+  status       TestStatus
+  teacherId    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  teacher    User         @relation("TeacherTests", fields: [teacherId], references: [id], onDelete: Cascade)
+  questions  Question[]
+  testResults TestResult[]
+}
+
+enum TestStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model Question {
+  id             String       @id @default(cuid())
+  testId         String
+  type           QuestionType
+  text           String
+  correctAnswer  String?      // For numerical questions
+  correctMarks   Float
+  incorrectMarks Float
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  test    Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  options Option[]
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  NUMERICAL
+  MATRIX_MATCH
+}
+
+model Option {
+  id         String   @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model TestResult {
+  id          String       @id @default(cuid())
+  testId      String
+  studentId   String
+  score       Float
+  totalMarks  Float
+  answers     Json         // Stored as JSON string
+  status      ResultStatus
+  completedAt DateTime
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  test    Test @relation(fields: [testId], references: [id], onDelete: Cascade)
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+enum ResultStatus {
+  PASSED
+  FAILED
+}
